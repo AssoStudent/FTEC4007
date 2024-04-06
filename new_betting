@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.11;
+
+contract Lottery {
+    address public owner;
+    mapping(address => uint256) public playerBalances;
+    address payable[] private players;
+    uint public lotteryId = 1;
+    mapping(uint => address payable) public lotteryHistory;
+    mapping(address => uint) public playerBetsCount;
+    uint private constant MAX_BETS_PER_PLAYER = 3; // Set upper limit of bets per player
+    uint private  constant WITHDRAWAL_PENALTY_PERCENT = 10; // Penalty for early withdrawal
+
+    constructor() {
+        owner = msg.sender;
+    }
+
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+
+    function getPlayers() public view returns (address payable[] memory) {
+        return players;
+    }
+
+    function enter() public payable {
+        require(msg.value == 1 ether, "Must send exactly 1 ETH");
+        require(playerBetsCount[msg.sender] < MAX_BETS_PER_PLAYER, "Player has reached max number of bets");
+
+        players.push(payable(msg.sender));
+        playerBalances[msg.sender] += msg.value;
+        playerBetsCount[msg.sender]++;
+    }
+
+    function withdraw() public {
+        uint256 playerBalance = playerBalances[msg.sender];
+        require(playerBalance > 0, "You have no funds to withdraw");
+
+        uint256 penalty = (playerBalance * WITHDRAWAL_PENALTY_PERCENT) / 100;
+        uint256 withdrawalAmount = playerBalance - penalty;
+
+        playerBalances[msg.sender] = 0;
+        // Remove player from the players array
+        for (uint256 i = 0; i < players.length; i++) {
+            if (players[i] == msg.sender) {
+                players[i] = players[players.length - 1];
+                players.pop();
+                break;
+            }
+        }
+        // Reset the bet count for the player
+        playerBetsCount[msg.sender] = 0;
+
+        payable(msg.sender).transfer(withdrawalAmount);
+    }
+
+    function getRandomNumber() private view returns (uint) {
+        return uint(keccak256(abi.encodePacked(owner, block.timestamp, players)));
+    }
+
+    function pickWinner() public {
+        require(msg.sender == owner, "Only the owner can pick a winner");
+        require(players.length > 0, "No players in the lottery");
+
+        uint index = getRandomNumber() % players.length;
+        address payable winner = players[index];
+        winner.transfer(address(this).balance);
+
+        lotteryHistory[lotteryId] = winner;
+        lotteryId++;
+
+        // Reset the state of the contract
+        delete players;
+        // Reset all players' balances
+        for (uint i = 0; i < players.length; i++) {
+            playerBalances[players[i]] = 0;
+            playerBetsCount[players[i]] = 0;
+        }
+    }
+
+    // Additional function to reset the contract (can be called by the owner only)
+    function resetLottery() external {
+        require(msg.sender == owner, "Only the owner can reset the lottery");
+        for (uint i = 0; i < players.length; i++) {
+            playerBalances[players[i]] = 0;
+            playerBetsCount[players[i]] = 0;
+        }
+        delete players;
+        lotteryId++;
+    }
+}
