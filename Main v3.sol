@@ -43,11 +43,11 @@ contract Lottery {
     uint private constant PRIZE_POOL_RATIO = 1; // Set how much money are used as reward from the prize pool
     uint private constant WINNING_BONUS_RATIO = 1; // Set how much the multiplier in winning
     uint private constant GUESS_NUMBER_1_MIN = 1; // Set the GUESSNUMBER 1 range minimun 
-    uint private constant GUESS_NUMBER_1_MAX = 10; // Set the GUESSNUMBER 1 range maximum
+    uint private constant GUESS_NUMBER_1_MAX = 1; // Set the GUESSNUMBER 1 range maximum
     uint private constant GUESS_NUMBER_2_MIN = 1; // Set the GUESSNUMBER 2 range minimun 
-    uint private constant GUESS_NUMBER_2_MAX = 10; // Set the GUESSNUMBER 2 range maximum 
+    uint private constant GUESS_NUMBER_2_MAX = 1; // Set the GUESSNUMBER 2 range maximum 
     uint private constant GUESS_NUMBER_3_MIN = 1; // Set the GUESSNUMBER 3 range minimun 
-    uint private constant GUESS_NUMBER_3_MAX = 10; // Set the GUESSNUMBER 3 range maximum
+    uint private constant GUESS_NUMBER_3_MAX = 1; // Set the GUESSNUMBER 3 range maximum
     
     constructor() {
         owner = msg.sender;
@@ -158,9 +158,9 @@ contract Lottery {
     // **************************************
     //  Owner Functions
     // **************************************
-    function getRandomNumber() private view returns (uint) {
+    function getRandomNumber(uint range_min, uint range_max) private view returns (uint) {
         uint256 randomNumber = uint(keccak256(abi.encodePacked(owner, block.timestamp, player_record)));
-        return uint((randomNumber % 10) + 1);
+        return uint((randomNumber % range_max) + range_min);
     }
 
     function fillMoneyToPool() public payable {
@@ -179,9 +179,9 @@ contract Lottery {
         require(player_record.length > 0, "No players in the lottery");
         require(address(this).balance / PRIZE_POOL_RATIO > MAX_PLAYERS_IN_GAME * 3 * WINNING_BONUS_RATIO, "Not enough money to distribute players.");
 
-        uint ResultNumber1 = getRandomNumber();
-        uint ResultNumber2 = getRandomNumber();
-        uint ResultNumber3 = getRandomNumber();
+        uint ResultNumber1 = getRandomNumber(GUESS_NUMBER_1_MIN, GUESS_NUMBER_1_MAX);
+        uint ResultNumber2 = getRandomNumber(GUESS_NUMBER_2_MIN, GUESS_NUMBER_2_MAX);
+        uint ResultNumber3 = getRandomNumber(GUESS_NUMBER_3_MIN, GUESS_NUMBER_3_MAX);
     
         // Check Matching
         uint bonus_ratio = 0;
