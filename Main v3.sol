@@ -27,11 +27,9 @@ contract Lottery {
         uint GuessNumber2;
         uint GuessNumber3;
         bool discarded;
+        uint winning_bonus;
     }
     singleBet[] private bets;
-    
-    // Result
-    mapping(address => uint) private winners_bonus;
 
     // money pool
     uint256 private prize_pool;
@@ -107,7 +105,7 @@ contract Lottery {
         require(GuessNumber3 >= GUESS_NUMBER_3_MIN && GuessNumber3 <= GUESS_NUMBER_3_MAX, "The guess number 3 should be in valid range.");
         uint256 id;
         id = bets.length;
-        bets.push(singleBet(payable(msg.sender), id, msg.value, GuessNumber1, GuessNumber2, GuessNumber3, false));
+        bets.push(singleBet(payable(msg.sender), id, msg.value, GuessNumber1, GuessNumber2, GuessNumber3, false, 0));
         player_record.push(payable(msg.sender));
         player[msg.sender].Balances += msg.value;
         player[msg.sender].BetsCount += 1;
@@ -201,14 +199,14 @@ contract Lottery {
                 if (bets[id].GuessNumber3 == ResultNumber3) {
                     bonus_ratio += WINNING_BONUS_RATIO;
                 }
-                winners_bonus[bets[id].player_address] = bonus_ratio;
+                bets[id].winning_bonus = bonus_ratio;
             }
         }
 
         // Distribute the prizes
-        uint reward = (address(this).balance / PRIZE_POOL_RATIO) / player_record.length;
-        for (uint i = 0; i < player_record.length; i++) {
-            payable(player_record[i]).transfer(reward * winners_bonus[player_record[i]]);
+        uint reward = (address(this).balance / PRIZE_POOL_RATIO) / bets.length;
+        for (uint id = 0; id < bets.length; id++) {
+            payable(bets[id].player_address).transfer(reward * bets[id].winning_bonus);
         }
 
         // Reset variables
