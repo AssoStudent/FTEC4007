@@ -91,6 +91,10 @@ contract Lottery {
         return (bets[id].player_address, bets[id].lotteryId, bets[id].betValue, bets[id].GuessNumber1, bets[id].GuessNumber2, bets[id].GuessNumber3, bets[id].discarded);
     }
 
+    function enquiryValidGuessMinMax() public pure returns (uint, uint, uint, uint, uint, uint) {
+        return (GUESS_NUMBER_1_MIN, GUESS_NUMBER_1_MAX, GUESS_NUMBER_2_MIN, GUESS_NUMBER_2_MAX, GUESS_NUMBER_3_MIN, GUESS_NUMBER_3_MAX);
+    }
+
     // **************************************
     //  Player Functions
     // **************************************
