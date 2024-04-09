@@ -35,9 +35,9 @@ contract Lottery {
     uint[] ResultNumber1_record;
     uint[] ResultNumber2_record;
     uint[] ResultNumber3_record;
-    uint currentResultNumber1_seed = 4;
-    uint currentResultNumber2_seed = 0;
-    uint currentResultNumber3_seed = 7;
+    uint currentResultNumber1_seed = uint(keccak256(abi.encodePacked(owner, block.timestamp, block.timestamp)));
+    uint currentResultNumber2_seed = uint(keccak256(abi.encodePacked(owner, block.timestamp, block.number)));
+    uint currentResultNumber3_seed = uint(keccak256(abi.encodePacked(owner, block.number, block.number)));
 
     // contract settings
     uint private constant MAX_BETS_PER_PLAYER = 3; // Set upper limit of bets per player
