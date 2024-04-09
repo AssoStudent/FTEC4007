@@ -171,11 +171,12 @@ contract Lottery {
 
     function fillMoneyToPool() public payable {
         require(msg.sender == owner, "Only the owner can fill the money to the prize pool.");
+        require(msg.value > 0 ether && msg.value <= 100 ether, "The input value must be between 0 and 100.");
     }
 
     function getMoneyOutPool() public {
         require(msg.sender == owner, "Only the owner can get the money out from the prize pool.");
-        require(player_record.length == 0, "Can only get the money out from the prize pool when no players has been in a game.");
+        require(player_record.length == 0, "Can only get the money out from the prize pool when no players has been in the game.");
         payable(msg.sender).transfer(address(this).balance);
     }
 
@@ -227,11 +228,13 @@ contract Lottery {
     // Additional function to reset the contract (can be called by the owner only)
     function resetLottery() public {
         require(msg.sender == owner, "Only the owner can reset the lottery");
+        uint256 refund = 0;
         for (uint i = 0; i < player_record.length; i++) {
-            payable(player_record[i]).transfer(player[player_record[i]].Balances);
+            refund = player[player_record[i]].Balances;
             player[player_record[i]].Balances = 0;
             player[player_record[i]].BetsCount = 0;
             delete player[player_record[i]].lotteryIdOwn;
+            payable(player_record[i]).transfer(refund);
         }
         delete player_record;
         delete bets;
