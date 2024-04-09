@@ -31,6 +31,14 @@ contract Lottery {
     }
     singleBet[] private bets; // bets[0], bets[1], ... bets[id]
 
+    // results
+    uint[] ResultNumber1_record;
+    uint[] ResultNumber2_record;
+    uint[] ResultNumber3_record;
+    uint currentResultNumber1_seed = 4;
+    uint currentResultNumber2_seed = 0;
+    uint currentResultNumber3_seed = 7;
+
     // contract settings
     uint private constant MAX_BETS_PER_PLAYER = 3; // Set upper limit of bets per player
     uint private constant WITHDRAWAL_PENALTY_PERCENT = 10; // Penalty for early withdrawal
@@ -101,6 +109,11 @@ contract Lottery {
     // For users to check what are the valid values they should put in the GuessNumber
     function enquiryValidGuessMinMax() public pure returns (uint, uint, uint, uint, uint, uint) {
         return (GUESS_NUMBER_1_MIN, GUESS_NUMBER_1_MAX, GUESS_NUMBER_2_MIN, GUESS_NUMBER_2_MAX, GUESS_NUMBER_3_MIN, GUESS_NUMBER_3_MAX);
+    }
+
+    // For users to check the result history
+    function checkResultHistory() public view returns (uint[] memory, uint[] memory, uint[] memory) {
+        return (ResultNumber1_record, ResultNumber2_record, ResultNumber3_record);
     }
 
     // **************************************
@@ -174,7 +187,7 @@ contract Lottery {
     // **************************************
     // return a random number in the range between range_min and range_max
     function getRandomNumber(uint range_min, uint range_max) private view returns (uint) {
-        uint256 randomNumber = uint(keccak256(abi.encodePacked(owner, block.timestamp, player_record)));
+        uint256 randomNumber = uint(keccak256(abi.encodePacked(owner, block.timestamp, player_record, currentResultNumber1_seed, currentResultNumber2_seed, currentResultNumber3_seed)));
         return uint((randomNumber % range_max) + range_min);
     }
 
@@ -193,15 +206,18 @@ contract Lottery {
 
     // draw 3 random numbers and then distribute the prize to those bets matching with the guess number
     // owner may has a privilege to start on any time (can be called by the owner only)
-    function pickWinner() public {
+    function pickWinner() public returns (uint, uint, uint) {
         require(msg.sender == owner, "Only the owner can pick a winner");
         require(player_record.length > 0, "No players in the lottery");
         require(address(this).balance / PRIZE_POOL_RATIO >= MAX_PLAYERS_IN_GAME * 3 * WINNING_BONUS_RATIO * 3, "Not enough money to distribute players.");
         // The prize pool for rewarding has to be larger than the maximum possible number of players multiply with maximum number of bets, and maximum number of winning bonus ratio.
 
         uint ResultNumber1 = getRandomNumber(GUESS_NUMBER_1_MIN, GUESS_NUMBER_1_MAX);
+        currentResultNumber1_seed += ResultNumber1;
         uint ResultNumber2 = getRandomNumber(GUESS_NUMBER_2_MIN, GUESS_NUMBER_2_MAX);
+        currentResultNumber2_seed += ResultNumber2;
         uint ResultNumber3 = getRandomNumber(GUESS_NUMBER_3_MIN, GUESS_NUMBER_3_MAX);
+        currentResultNumber3_seed += ResultNumber3;
     
         // Check Matching
         uint bonus_ratio = 0;
@@ -244,6 +260,11 @@ contract Lottery {
         }
         delete player_record;
         delete bets;
+
+        ResultNumber1_record.push(ResultNumber1);
+        ResultNumber2_record.push(ResultNumber2);
+        ResultNumber3_record.push(ResultNumber3);
+        return (ResultNumber1, ResultNumber2, ResultNumber3);
     }
 
     // Additional function to reset the contract (can be called by the owner only)
