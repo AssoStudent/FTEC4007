@@ -11,28 +11,25 @@ contract Lottery {
 
     // players
     struct player_status {
-        uint256 Balances;
-        uint BetsCount;
-        uint[] lotteryIdOwn;
+        uint256 Balances; // to see how much a player has paid in the current round of betting
+        uint BetsCount; // to count the number of bet that the player bets
+        uint[] lotteryIdOwn; // to store the corresponding bet IDs that player own
     }
-    mapping(address => player_status) private player;
-    address payable[] private player_record;
+    mapping(address => player_status) private player; // player[address].Balance, player[address].BetsCount, player[address].lotteryIdown
+    address payable[] private player_record; // store the player address for the current round of betting
 
     // bets
     struct singleBet{
-        address payable player_address;
-        uint256 lotteryId;
-        uint betValue;
+        address payable player_address; // To store who own this bet
+        uint256 lotteryId; // to identify the bet, unique for each round of betting
+        uint betValue; // to show how much has been paid for buying this bet
         uint GuessNumber1;
         uint GuessNumber2;
         uint GuessNumber3;
-        bool discarded;
-        uint winning_bonus;
+        bool discarded; // to check whether this bet has been discard by the user
+        uint winning_bonus; // for the use of PickWinner function distributing the prize
     }
-    singleBet[] private bets;
-
-    // money pool
-    uint256 private prize_pool;
+    singleBet[] private bets; // bets[0], bets[1], ... bets[id]
 
     // contract settings
     uint private constant MAX_BETS_PER_PLAYER = 3; // Set upper limit of bets per player
@@ -41,11 +38,11 @@ contract Lottery {
     uint private constant PRIZE_POOL_RATIO = 1; // Set how much money are used as reward from the prize pool
     uint private constant WINNING_BONUS_RATIO = 1; // Set how much the multiplier in winning
     uint private constant GUESS_NUMBER_1_MIN = 1; // Set the GUESSNUMBER 1 range minimun 
-    uint private constant GUESS_NUMBER_1_MAX = 1; // Set the GUESSNUMBER 1 range maximum
+    uint private constant GUESS_NUMBER_1_MAX = 3; // Set the GUESSNUMBER 1 range maximum
     uint private constant GUESS_NUMBER_2_MIN = 1; // Set the GUESSNUMBER 2 range minimun 
-    uint private constant GUESS_NUMBER_2_MAX = 1; // Set the GUESSNUMBER 2 range maximum 
+    uint private constant GUESS_NUMBER_2_MAX = 3; // Set the GUESSNUMBER 2 range maximum 
     uint private constant GUESS_NUMBER_3_MIN = 1; // Set the GUESSNUMBER 3 range minimun 
-    uint private constant GUESS_NUMBER_3_MAX = 1; // Set the GUESSNUMBER 3 range maximum
+    uint private constant GUESS_NUMBER_3_MAX = 3; // Set the GUESSNUMBER 3 range maximum
     
     constructor() {
         owner = msg.sender;
@@ -54,30 +51,37 @@ contract Lottery {
     // **************************************
     //  Query Functions
     // **************************************
+    // To see how much has been put in this contract
     function getBalance() public view returns (uint) {
         return address(this).balance;
     }
 
+    // To see how much the user has been put for the current round of betting
     function getPlayerBalance() public view returns (uint) {
         return player[msg.sender].Balances;
     }
 
+    // To see a list of players that has entered the game
     function getPlayerAddresses() public view returns (address payable[] memory) {
         return player_record;
     }
 
+    // For the user to see which ID the user owns
     function getPlayerLotteryIdOwn() public view returns (uint[] memory) {
         return player[msg.sender].lotteryIdOwn;
     }
 
+    // To see how many player has entered the game, return total number instead of addresses
     function getNumberOfPlayers() public view returns (uint) {
         return player_record.length;
     }
 
+    // To see how many bets has been made in the current round of betting
     function getNumberOfBets() public view returns (uint) {
         return bets.length;
     }
 
+    // To see how many bet that has not discarded has been made in the current round of betting
     function getNumberOfValidBets() public view returns (uint) {
         uint number = 0;
         for (uint ID = 0; ID < bets.length; ID++) {
@@ -88,11 +92,13 @@ contract Lottery {
         return number;
     }
 
+    // To see the guess number for a bet with requested id
     function getBetDetails(uint256 id) public view returns (address payable, uint, uint, uint, uint, uint, bool) {
         require(id < bets.length, "Invalid bet ID");
         return (bets[id].player_address, bets[id].lotteryId, bets[id].betValue, bets[id].GuessNumber1, bets[id].GuessNumber2, bets[id].GuessNumber3, bets[id].discarded);
     }
 
+    // For users to check what are the valid values they should put in the GuessNumber
     function enquiryValidGuessMinMax() public pure returns (uint, uint, uint, uint, uint, uint) {
         return (GUESS_NUMBER_1_MIN, GUESS_NUMBER_1_MAX, GUESS_NUMBER_2_MIN, GUESS_NUMBER_2_MAX, GUESS_NUMBER_3_MIN, GUESS_NUMBER_3_MAX);
     }
@@ -100,6 +106,7 @@ contract Lottery {
     // **************************************
     //  Player Functions
     // **************************************
+    // enter the game
     function enter(uint GuessNumber1, uint GuessNumber2, uint GuessNumber3) public payable {
         require(msg.value == 1 ether, "You must send exactly 1 ETH.");
         require(player_record.length < MAX_PLAYERS_IN_GAME, "Do not allow new players enter the game because it has reached the limitation already.");
@@ -116,6 +123,7 @@ contract Lottery {
         player[msg.sender].lotteryIdOwn.push(id);
     }
 
+    // withdraw a bet with request id
     function withdraw(uint256 id) public {
         require(id < bets.length, "Invalid bet ID");
         require(msg.sender == bets[id].player_address, "You are not the owner of this bet. Access denied.");
@@ -164,23 +172,27 @@ contract Lottery {
     // **************************************
     //  Owner Functions
     // **************************************
+    // return a random number in the range between range_min and range_max
     function getRandomNumber(uint range_min, uint range_max) private view returns (uint) {
         uint256 randomNumber = uint(keccak256(abi.encodePacked(owner, block.timestamp, player_record)));
         return uint((randomNumber % range_max) + range_min);
     }
 
+    // for owner to increase the amount of the contract balance (can be called by the owner only)
     function fillMoneyToPool() public payable {
         require(msg.sender == owner, "Only the owner can fill the money to the prize pool.");
         require(msg.value > 0 ether && msg.value <= 100 ether, "The input value must be between 0 and 100.");
     }
 
+    // for owner to get the money out from the contract (can be called by the owner only)
     function getMoneyOutPool() public {
         require(msg.sender == owner, "Only the owner can get the money out from the prize pool.");
         require(player_record.length == 0, "Can only get the money out from the prize pool when no players has been in the game.");
         payable(msg.sender).transfer(address(this).balance);
     }
 
-
+    // draw 3 random numbers and then distribute the prize to those bets matching with the guess number
+    // owner may has a privilege to start on any time (can be called by the owner only)
     function pickWinner() public {
         require(msg.sender == owner, "Only the owner can pick a winner");
         require(player_record.length > 0, "No players in the lottery");
