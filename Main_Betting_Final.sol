@@ -209,7 +209,7 @@ contract Lottery {
     function pickWinner() public returns (uint, uint, uint) {
         require(msg.sender == owner, "Only the owner can pick a winner");
         require(player_record.length > 0, "No players in the lottery");
-        require(address(this).balance / PRIZE_POOL_RATIO >= MAX_PLAYERS_IN_GAME * 3 * WINNING_BONUS_RATIO * 3, "Not enough money to distribute players.");
+        require(address(this).balance / PRIZE_POOL_RATIO >= MAX_PLAYERS_IN_GAME * MAX_BETS_PER_PLAYER * WINNING_BONUS_RATIO * 3, "Not enough money to distribute players.");
         // The prize pool for rewarding has to be larger than the maximum possible number of players multiply with maximum number of bets, and maximum number of winning bonus ratio.
 
         uint ResultNumber1 = getRandomNumber(GUESS_NUMBER_1_MIN, GUESS_NUMBER_1_MAX);
