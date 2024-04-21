@@ -38,7 +38,7 @@ contract Lottery {
     uint private currentResultNumber1_seed = uint(keccak256(abi.encodePacked(owner, block.timestamp, block.timestamp)));
     uint private currentResultNumber2_seed = uint(keccak256(abi.encodePacked(owner, block.timestamp, block.number)));
     uint private currentResultNumber3_seed = uint(keccak256(abi.encodePacked(owner, block.number, block.number)));
-    bool private end = false;
+    bool private result_released = false;
 
     // contract settings
     uint private constant MAX_BETS_PER_PLAYER = 3; // Set upper limit of bets per player
@@ -128,7 +128,7 @@ contract Lottery {
         require(GuessNumber1 >= GUESS_NUMBER_1_MIN && GuessNumber1 <= GUESS_NUMBER_1_MAX, "The guess number 1 should be in valid range.");
         require(GuessNumber2 >= GUESS_NUMBER_2_MIN && GuessNumber2 <= GUESS_NUMBER_2_MAX, "The guess number 2 should be in valid range.");
         require(GuessNumber3 >= GUESS_NUMBER_3_MIN && GuessNumber3 <= GUESS_NUMBER_3_MAX, "The guess number 3 should be in valid range.");
-        require(end == false, "Please wait until next round.");
+        require(result_released == false, "Please wait until next round.");
         uint256 id;
         id = bets.length;
         bets.push(singleBet(payable(msg.sender), id, msg.value, GuessNumber1, GuessNumber2, GuessNumber3, false, 0));
@@ -141,7 +141,7 @@ contract Lottery {
     // withdraw a bet with request id
     function withdraw(uint256 id) public {
         require(id < bets.length, "Invalid bet ID");
-        require(end == false, "The result has been released. Access denied.");
+        require(result_released == false, "The result has been released. Access denied.");
         require(msg.sender == bets[id].player_address, "You are not the owner of this bet. Access denied.");
         require(player[msg.sender].Balances > 0, "You have no funds to withdraw.");
 
@@ -189,8 +189,8 @@ contract Lottery {
     //  Owner Functions
     // **************************************
     // return a random number in the range between range_min and range_max
-    function getRandomNumber(uint range_min, uint range_max) private view returns (uint) {
-        uint256 randomNumber = uint(keccak256(abi.encodePacked(owner, block.timestamp, player_record, currentResultNumber1_seed, currentResultNumber2_seed, currentResultNumber3_seed)));
+    function getRandomNumber(uint range_min, uint range_max, uint seed1, uint seed2) private view returns (uint) {
+        uint256 randomNumber = uint(keccak256(abi.encodePacked(owner, block.timestamp, player_record, seed1, seed2)));
         return uint((randomNumber % range_max) + range_min);
     }
 
@@ -211,17 +211,20 @@ contract Lottery {
     // owner may has a privilege to start on any time (can be called by the owner only)
     function pickWinner() public returns (uint, uint, uint) {
         require(msg.sender == owner, "Only the owner can pick a winner");
-        require(end == false, "The winner has been picked already. Please reset.");
+        require(result_released == false, "The winner has been picked already. Please reset.");
         require(player_record.length > 0, "No players in the lottery");
         require(address(this).balance / PRIZE_POOL_RATIO >= MAX_PLAYERS_IN_GAME * MAX_BETS_PER_PLAYER * WINNING_BONUS_RATIO * 3, "Not enough money to distribute players.");
         // The prize pool for rewarding has to be larger than the maximum possible number of players multiply with maximum number of bets, and maximum number of winning bonus ratio.
-        end = true;
+        result_released = true;
 
-        uint ResultNumber1 = getRandomNumber(GUESS_NUMBER_1_MIN, GUESS_NUMBER_1_MAX);
+        uint ResultNumber1 = getRandomNumber(GUESS_NUMBER_1_MIN, GUESS_NUMBER_1_MAX,
+                                            currentResultNumber2_seed, currentResultNumber3_seed);
         currentResultNumber1_seed += ResultNumber1;
-        uint ResultNumber2 = getRandomNumber(GUESS_NUMBER_2_MIN, GUESS_NUMBER_2_MAX);
+        uint ResultNumber2 = getRandomNumber(GUESS_NUMBER_2_MIN, GUESS_NUMBER_2_MAX,
+                                            currentResultNumber1_seed, currentResultNumber3_seed);
         currentResultNumber2_seed += ResultNumber2 * ResultNumber1;
-        uint ResultNumber3 = getRandomNumber(GUESS_NUMBER_3_MIN, GUESS_NUMBER_3_MAX);
+        uint ResultNumber3 = getRandomNumber(GUESS_NUMBER_3_MIN, GUESS_NUMBER_3_MAX,
+                                            currentResultNumber1_seed, currentResultNumber2_seed);
         currentResultNumber3_seed += ResultNumber3 * ResultNumber2 * ResultNumber1;
     
         // Check Matching
@@ -243,7 +246,7 @@ contract Lottery {
         }
 
         // Distribute the prizes
-        uint256 reward = ((address(this).balance / PRIZE_POOL_RATIO) / (WINNING_BONUS_RATIO * 3)) / bets.length;
+        uint256 reward = ((address(this).balance / PRIZE_POOL_RATIO) / (WINNING_BONUS_RATIO * 3)) / getNumberOfValidBets();
         for (uint id = 0; id < bets.length; id++) {
             if (bets[id].discarded == false) {
                 uint256 reward_each = reward * bets[id].winning_bonus;
@@ -274,7 +277,7 @@ contract Lottery {
             delete player[player_record[i]].lotteryIdOwn;
             payable(player_record[i]).transfer(refund);
         }
-        end = false;
+        result_released = false;
         delete player_record;
         delete bets;
     }
